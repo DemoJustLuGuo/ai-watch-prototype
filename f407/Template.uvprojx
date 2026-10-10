@@ -773,6 +773,11 @@
               <FilePath>.\APP\ui\ui_voice.c</FilePath>
             </File>
             <File>
+              <FileName>lv_font_chinese_16_trial.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>.\APP\ui\lv_font_chinese_16_trial.c</FilePath>
+            </File>
+            <File>
               <FileName>lv_disp.c</FileName>
               <FileType>1</FileType>
               <FilePath>.\Middlewares\lvgl\src\core\lv_disp.c</FilePath>
@@ -1516,11 +1521,6 @@
               <FileName>lv_font_simsun_16_cjk.c</FileName>
               <FileType>1</FileType>
               <FilePath>.\Middlewares\lvgl\src\font\lv_font_simsun_16_cjk.c</FilePath>
-            </File>
-            <File>
-              <FileName>lv_font_chinese_16_trial.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>.\Middlewares\lvgl\src\font\lv_font_chinese_16_trial.c</FilePath>
             </File>
             <File>
               <FileName>lv_font_unscii_16.c</FileName>

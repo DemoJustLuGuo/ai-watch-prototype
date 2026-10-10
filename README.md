@@ -1,47 +1,115 @@
-# AI 手表原型
+# AI 手表原型 · 云边端协同
 
-普中 PZ6808L-F4 上的课设工程。方案说明在上一级的 `课设方案-AI手表功能原型.md`。
+[![CI 状态占位](https://img.shields.io/badge/status-course%20project%20done-brightgreen)]()
 
-## 已经定下来的
+> 《通信工程综合设计 III》课程设计 —— 题目 2《基于 STM32 微控制器的智能系统设计》
+> 在普中 PZ6808L-F4（STM32F407ZGT6）开发板上实现的多功能 AI 手表原型，非可穿戴成品。
 
-- 屏：3.5 寸 **HX8357D**，320×480，FSMC 16 位。资料里有同名原理图和数据手册。`tftlcd.h` 已改成 `TFTLCD_HX8357D`，竖屏。
-- 地址宏沿用普中实验：`0x6C000000 | 0x0000007E`。
-- F407 用 Keil + 这套 HAL。工程从「基础实验 HAL 版」的实验 33（FSMC-TFTLCD）拷出。
-- 蜂鸣器在 PZ6808L 上是低电平响。例程原板 T200/T300 是高电平，不要照抄例程里的蜂鸣极性。
-- 界面后续用 LVGL 8.3，局部刷新。本目录现在只到「屏能点亮」。
-- C3、语音密钥、城市经纬度、计步阈值上板后再填，不挡当前编译。
+**完整课设报告（30 页 PDF）见 [`report/main.pdf`](report/main.pdf)**，设计决策文档见 [`docs/课设方案-AI手表功能原型.md`](docs/课设方案-AI手表功能原型.md)。
 
-## 目录
+---
 
-| 路径 | 内容 |
-| --- | --- |
-| `f407/Template.uvprojx` | Keil 工程，芯片 STM32F407ZG |
-| `f407/APP/tftlcd` | HX8357D 驱动 |
-| `f407/APP/iic` `mpu6050` `ds18b20` `rtc` `beep` | 传感器/外设 BSP（普中例程风格，引脚按方案 3.2） |
-| `f407/APP/pedometer` | 计步（方案 4.2，自写阈值，不用 DMP） |
-| `f407/APP/proto` `usart_c3` | F407↔C3 帧协议（方案 5.1）与 UART4 链路 |
-| `f407/APP/ui` | LVGL 五页界面 + `ui_font.c`（界面汉字字体） |
-| `f407/tools/gen_ui_font.py` | 用 simhei 重新生成 `ui_font.c`；改文案后跑一次 |
-| `c3/` | ESP32-C3 网关，尚未建固件 |
+## 它能做什么
 
-## 本步进度（时间/计步/天气逻辑）
+| 功能 | 说明 | 落在哪颗芯片 |
+| --- | --- | --- |
+| 🕐 LVGL 表盘 | 3.5" HX8357D 320×480，FSMC 16 位并口，本地刷新 | F407 |
+| 🚶 计步 + 跌倒粗判 | MPU6050 自写阈值算法（不用 DMP），EEPROM 掉电保存 | F407 |
+| 🌡 表温 | DS18B20 非阻塞转换 | F407 |
+| 🎙 语音对话 | 按住说话 → 10 s 录音 → 云端大模型回答显示在屏上 | F407 采集 → C3 上云 |
+| 🌤 天气查询 | Open-Meteo，五城市切换，一行中文摘要 | C3 → F407 显示 |
+| ⏰ 闹钟/秒表/倒计时/计算器/小游戏 | 贪吃蛇、乒乓、俄罗斯方块 | F407 |
+| 📴 断网降级 | 断网后时钟、计步、表温照走 —— 架构演示点 | F407 |
 
-- BSP：软件 I2C（PB8/PB9）、MPU6050（0x68，50Hz/±2g）、DS18B20（PG9，非阻塞转换）、RTC（LSE，首次上电用编译时间设初值）、蜂鸣器（PF8 低电平）。
-- 逻辑：计步（合加速度-重力基线，阈值 0.15g/300ms）、CRC16-Modbus 组帧与收帧状态机、UART4 460800 心跳/天气/识别回程。
-- 界面接线：`main.c` 每拍把 RTC 时间、表温、计步、在线状态、天气文本推给 UI；状态栏「时钟 / 表温 / 在线离线」，计步页实时数字，天气页显示 C3 回传文本（进页请求一次）。
-- C3 未接时：时钟、计步、表温照走，状态栏显示「离线」——符合方案的断网演示。
-- 语音链路（麦克风采样、分包上传）留到麦克风那步再接。
+## 云边端三层架构
+
+```
+ 云端   火山方舟语音大模型 · Open-Meteo 天气     （模型推理在云）
+  ▲ HTTPS（TLS，仅 C3 直连）
+ 边缘   ESP32-C3（ESP-IDF v5.4.4）              （联网网关，不碰板级 IO）
+  ▲ UART4 460800 8N1 自定义帧协议（CRC16 停等）
+ 端侧   STM32F407ZGT6 @168 MHz                  （采集、算法、LVGL 界面）
+        FreeRTOS · LVGL 8.3 · FSMC · I2C · 1-Wire · ADC+DMA
+```
+
+**设计原则**：F407 只做采集、算法与显示；C3 只做联网与协议转换；重识别在云端。
+关键词解析、指令执行全部在 F407 本地完成，断网时基础功能不受影响。
+
+## 目录结构
+
+```
+├── f407/                      # STM32F407 端侧固件（Keil AC5 + eide）
+│   ├── APP/                   #   BSP + 逻辑层 + LVGL 界面（自研代码）
+│   ├── User/                  #   main.c：FreeRTOS 任务划分
+│   ├── Libraries/             #   STM32F4 HAL
+│   ├── Middlewares/           #   FreeRTOS 内核 + LVGL (submodule)
+│   └── Template.uvprojx       #   Keil 工程
+├── c3/                        # ESP32-C3 边缘网关（ESP-IDF）
+│   └── main/                  #   link/wifi/asr/weather 四模块
+├── report/                    # 课设报告（LaTeX 源码 + main.pdf）
+├── docs/                      # 设计方案 + 调试记录
+└── README.md
+```
 
 ## 构建
 
-Keil 5 打开 `f407/Template.uvprojx`；或用 eide（VS Code）。命令行无头编译（当前使用）：
+### F407（二选一）
 
+- **Keil 5** 打开 `f407/Template.uvprojx`，Target 1，编译
+- **eide 无头编译**：`unify_builder.exe -p "build/Target 1/builder.params" --no-color`
+  （`build/` 不入库，首次用 Keil/eide 编译后生成）
+
+需要 **armcc v5** 工具链（AC5）。LVGL 为 submodule：
+
+```bash
+git clone --recurse-submodules https://github.com/<you>/ai-watch-prototype.git
 ```
-unify_builder.exe -p "build/Target 1/builder.params" --no-color
+
+### ESP32-C3
+
+ESP-IDF v5.4.4，PowerShell：
+
+```powershell
+idf.py set-target esp32c3
+idf.py build
 ```
 
-`unify_builder.exe` 在 `~/.vscode/extensions/cl.eide-*/res/tools/win32/unify_builder/`。
-新增 `.c` 要同时登记到 `.eide/eide.yml`、`build/Target 1/builder.params`、`Template.uvprojx` 三处。
-当前占用：Code≈210KB，RAM 56.9%（72.9/128KB），ROM 31.4%。
+### 前置配置（必读）
 
-下载切换停在 F4。第一件事是上电看屏是否点亮；花屏再改 FSMC 时序，不要先改分辨率。
+1. **LVGL submodule**：`git submodule update --init`
+2. **中文字库**：改 UI 文案后运行 `python f407/tools/gen_ui_font.py`
+   （需要 Pillow + simhei.ttf，生成 `lv_font_chinese_16_trial.c`，放 LVGL 源码树）
+3. **密钥**：`cp c3/main/secrets.h.example c3/main/secrets.h`，填入
+   Wi-Fi SSID/密码、火山方舟 API Key（`secrets.h` 已被 .gitignore 挡住，不会入库）
+
+## 硬件接线（杜邦线）
+
+| F407 | ESP32-C3 | 说明 |
+| --- | --- | --- |
+| PC10 (UART4_TX) | GPIO5 (RX) | 460800 8N1 |
+| PC11 (UART4_RX) | GPIO4 (TX) | ↑ |
+| P9 3.3V / GND | 3V3 / GND | C3 供电 |
+
+麦克风模块 AO→PA5（J01/J4 跳线帽必须拔掉）。详见 `docs/课设方案-AI手表功能原型.md` 第 3 节。
+
+## 技术要点
+
+- **F407↔C3 帧协议**：`A5 5A | VER | SRC | DST | TYPE | SEQ | LEN | PAYLOAD | CRC16`，
+  停等重传（300 ms × 3），类型见 `f407/APP/proto/proto.h`
+- **10 s 语音不在 C3 RAM 里**：320 KB PCM 落 C3 的 flash `audio` 分区，上传时按块读、
+  按块 Base64、按块写 HTTPS 请求体，峰值内存只有几 KB —— F407 侧 PCM 则放在外部
+  SRAM（FSMC NE3），内部 128 KB SRAM 留给 LVGL 双缓冲和 FreeRTOS
+- **LVGL 无锁**：所有 `lv_*` 调用只在 `task_ui`，其他任务经 FreeRTOS 队列投递事件
+- **计步**：合加速度 − 一阶滤波重力基线，动态量过阈回落 + 步间隔门限，阈值可在
+  校准页调并落 EEPROM
+
+## 相关文档
+
+- [`report/main.pdf`](report/main.pdf) —— 课设报告（30 页）
+- [`docs/课设方案-AI手表功能原型.md`](docs/课设方案-AI手表功能原型.md) —— 完整设计决策
+- [`docs/voice_bringup_20260923.md`](docs/voice_bringup_20260923.md) / [`docs/voice_10s_20260923.md`](docs/voice_10s_20260923.md) —— 语音链路上板调试记录
+- [`c3/README.md`](c3/README.md) / [`f407/README.md`](f407/) —— 两颗固件各自的说明
+
+## License
+
+课程设计作品，仅供学习参考。LVGL 遵循其原版 MIT License（见 submodule）。

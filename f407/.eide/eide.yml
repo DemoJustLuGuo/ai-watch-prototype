@@ -91,6 +91,7 @@ virtualFolder:
         - path: APP/ui/ui_tetris.c
         - path: APP/ui/ui_weather.c
         - path: APP/ui/ui_voice.c
+        - path: APP/ui/lv_font_chinese_16_trial.c
       folders: []
     - name: FreeRTOS
       files:

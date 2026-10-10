@@ -1,0 +1,56 @@
+\appendix
+
+\section{附录A：大模型对话摘录}
+\label{app:llm}
+下面三段取自开发会话。前一段是提出的改动，后一段是当时给出的改法。
+
+\subsection{录音上限改为 10 秒}
+\textbf{需求。}
+定到 10 秒。如果占用太大，再上压缩算法。
+
+\textbf{修改。}
+先只改 F407：按住录音、松开停止，满 10 秒自动停，短于 400\,ms 仍丢弃。
+10 秒原始 PCM 为 160000 点、320000 字节，放外部 SRAM，约占 30.5\%；
+DMA 半块和外设句柄仍留在内部 SRAM。压缩先不加入，因为 C3 若整段解压再生成
+WAV、Base64 和 JSON，峰值内存还在。后续若要压，优先评估 IMA ADPCM，
+并同时改接收端，不能只改发送端。
+
+\subsection{转写改为 AI 对话}
+\textbf{需求。}
+F407 上显示不出来。页面不要写成「识别结果」，改成「AI 对话」。
+云端接的是多模态模型，提示词改为直接对语音作文字回复，不要只返回转写。
+
+\textbf{修改。}
+C3 把语音和提示词一起提交，要求用简短中文直接回应，不复述原话，
+回复限制在 40 个汉字以内。协议帧类型仍用 \texttt{ASR\_TEXT}。
+F407 语音页标题改为「AI对话」。当时一次真实回复用了约 11.8\,s，
+而板上等待只有 8\,s，所以把磁盘源码里的等待改成 30\,s，再重新编译。
+
+\subsection{把常用字写入片内 Flash}
+\textbf{需求。}
+屏幕上已经能看到回复，但有的字形没有写进单片机。
+需要一份常用字较多、又能装进 ROM 的字库。
+
+\textbf{修改。}
+现有 \texttt{ui\_font.c} 只生成界面文案用到的一百多个汉字，缺字会显示成空白。
+不启用 LVGL 自带的 4\,bpp 宋体，那份体积过大。
+改为 16\,px、1\,bpp 的子集字库，字符先取常用汉字，再补回复里出现的标点，
+英文和数字继续用 Montserrat。字模编进片内 Flash，最后以链接后的容量为准。
+
+\section{附录B：核心代码节选}
+以下为核心功能代码节选，完整工程见随报告提交的源码包。
+
+\subsection{帧协议 CRC 与组帧（F407 proto.c）}
+\lstinputlisting[style=ccode, firstline=1, lastline=60]{code/proto_excerpt.c}
+
+\subsection{计步核心判断（F407 pedometer.c）}
+\lstinputlisting[style=ccode, firstline=1, lastline=60]{code/pedometer_excerpt.c}
+
+\subsection{DMA 录音半块转存（F407 mic.c）}
+\lstinputlisting[style=ccode, firstline=1, lastline=60]{code/mic_excerpt.c}
+
+\subsection{语音状态机推进节选（F407 voice.c）}
+\lstinputlisting[style=ccode, firstline=1, lastline=60]{code/voice_excerpt.c}
+
+\subsection{C3 帧接收状态机节选（link.c / proto.c）}
+\lstinputlisting[style=ccode, firstline=1, lastline=60]{code/c3_link_excerpt.c}

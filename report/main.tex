@@ -1,0 +1,80 @@
+% !TEX program = xelatex
+% 《通信工程综合设计III》课程设计报告
+% 编译: xelatex main.tex (两遍)
+\documentclass[12pt,a4paper]{ctexart}
+\usepackage[margin=2.5cm]{geometry}
+\usepackage{amsmath,amssymb}
+\usepackage{graphicx}
+\usepackage{booktabs,array,longtable,multirow}
+\usepackage{xcolor}
+\usepackage{tikz}
+\usetikzlibrary{arrows.meta,positioning,shapes.geometric,shapes.misc,fit,backgrounds,calc}
+\setlength{\headheight}{14pt}
+\usepackage{listings}
+\usepackage{caption}
+\usepackage{enumitem}
+\usepackage{fancyhdr}
+\usepackage{pdfpages}
+\usepackage[colorlinks=true,linkcolor=black,urlcolor=blue,citecolor=black]{hyperref}
+
+\input{settings}
+
+% ----- 代码样式 -----
+\lstdefinestyle{ccode}{
+  language=C, basicstyle=\ttfamily\footnotesize, columns=fullflexible,
+  commentstyle=\color{gray}, keywordstyle=\color{blue}\bfseries,
+  stringstyle=\color{red!60!black}, numbers=left, numberstyle=\tiny\color{gray},
+  frame=single, framerule=0.3pt, breaklines=true, keepspaces=true,
+  showstringspaces=false, xleftmargin=1.6em,
+  aboveskip=6pt, belowskip=4pt,
+}
+\lstdefinestyle{shell}{basicstyle=\ttfamily\small, frame=single, framerule=0.3pt,
+  breaklines=true, xleftmargin=1em, backgroundcolor=\color{black!4}}
+
+\newcommand{\shotfig}[2]{% 待贴截图占位框 \shotfig{标签}{说明}
+\begin{figure}[htbp]\centering
+  \fbox{\parbox[c][3.2cm][c]{0.82\linewidth}{\centering\itshape 待贴截图：#2}}
+  \caption{#2}\label{#1}
+\end{figure}}
+
+\pagestyle{fancy}
+\fancyhf{}
+\fancyhead[CE,CO]{\small 通信工程综合设计III课程设计报告}
+\fancyfoot[C]{\small\thepage}
+\renewcommand{\headrulewidth}{0.4pt}
+
+\begin{document}
+
+% 封面整页来自指导书末页的 Word 模板，由 Word 导出，不再用 LaTeX 重排。
+\includepdf[pages=1,pagecommand={\thispagestyle{empty}}]{fig/cover-template.pdf}
+\setcounter{page}{1}
+
+% ================= 摘要 =================
+\begin{abstract}
+\noindent 本设计在天马F407 开发板上实现了一个云边端协同的 AI 智能手表原型。
+端侧 STM32F407ZGT6 通过 FSMC 总线驱动 3.5 寸 HX8357D 彩屏并运行 LVGL~8.3 图形界面，
+在本地完成麦克风录音、MPU6050 计步与跌倒粗判、DS18B20 温度采集、RTC 走时与闹钟等功能；
+边缘侧 ESP32-C3 作为通信网关，经 UART 与主控进行带 CRC 校验的自定义帧通信，
+负责 Wi-Fi 连接、把 PCM 音频封装为 WAV 后通过 HTTPS 上传至云端语音大模型，
+并将识别文本与天气摘要回传主控显示。语音识别采用云端大模型，本地完成指令执行，
+断网时时钟、计步、测温等本地功能不受影响。F407 用 FreeRTOS 把界面刷新、
+语音停等和传感器采样拆成不同优先级的任务，停等不会拖住走时和计步。
+实测完成了 16\,kHz/16\,bit 录音采集、分包可靠传输、
+云端语音对话与离线降级运行的完整链路。
+\par\vspace{1em}
+\noindent\textbf{关键词：} STM32F407；ESP32-C3；LVGL；云边端协同；AI对话；FreeRTOS
+\end{abstract}
+\thispagestyle{empty}
+\newpage
+\tableofcontents
+\newpage
+
+\input{ch01_intro}
+\input{ch02_design}
+\input{ch03_hardware}
+\input{ch04_software}
+\input{ch05_test}
+\input{ch06_conclusion}
+\input{appendix}
+
+\end{document}

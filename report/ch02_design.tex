@@ -1,0 +1,268 @@
+\section{系统总体设计}
+
+\subsection{需求分析}
+系统需求直接来自指导书对智能系统设计题目的四项功能要求，本设计的映射关系见表~\ref{tab:req}。
+
+\begin{table}[htbp]
+\centering\small
+\caption{指导书功能要求与本设计的映射}\label{tab:req}
+\begin{tabular}{@{}p{4.2cm}p{5.4cm}p{4.6cm}@{}}
+\toprule
+指导书要求 & 本设计实现 & 承担芯片\\
+\midrule
+数据采集 & 麦克风录音（16\,kHz/16\,bit PCM）、MPU6050 计步与跌倒粗判、DS18B20 表温、RTC 时间、四按键 & 全部在 F407\\
+本地处理/控制 & 计步算法、跌倒判定、录音组包与分包上传、闹钟/秒表/倒计时、LED 指示与蜂鸣提示 & 全部在 F407\\
+GUI 界面显示 & HX8357D 上 LVGL 8.3，六行主页加时间、计步、天气、语音等子页 & F407（FSMC 总线）\\
+云端交互 & 语音上传识别、天气查询，文本结果回传显示 & F407 $\to$ ESP32-C3 $\to$ 云端\\
+\bottomrule
+\end{tabular}
+\end{table}
+
+在四项基本要求之上，系统额外约定了三条非功能需求：
+\begin{enumerate}[label=（\arabic*）]
+\item \textbf{可靠性}。板间链路采用带 CRC 校验与停等重传的自定义帧协议，链路质量可统计。
+\item \textbf{断网降级}。云端交互不可用时，本地走时、计步、测温、闹钟不受影响，且界面上给出明确的在线状态指示。
+\item \textbf{可演示性}。全部功能可用板上四键驱动，无需额外调试器介入。
+\end{enumerate}
+
+\subsection{云边端三层架构}
+系统按``云--边--端''三层划分职责，架构如图~\ref{fig:arch}所示。
+划分原则是：\textbf{凡是对网络有依赖的，都放到 C3 及以上；凡是断网也必须能用的，都留在 F407。}
+
+\begin{figure}[htbp]
+\centering
+\begin{tikzpicture}[node distance=10mm]
+  \node[cloud, text width=12.4cm] (cloud)
+    {\textbf{云端}\enspace 语音大模型（火山方舟）\enspace 天气服务（Open-Meteo）};
+  \node[edge, below=of cloud, text width=12.4cm] (c3)
+    {\textbf{边缘 ESP32-C3}\enspace Wi-Fi / TLS\enspace WAV 与 Base64\enspace 天气行与 JSON};
+  \node[mcu, below=of c3, text width=12.4cm] (f4)
+    {\textbf{端 STM32F407ZGT6}\enspace 界面、计步与跌倒、录音、测温、走时、本地指令};
+  \draw[flow] (f4) -- (c3);
+  \node[lbl] at ($(f4.north)!0.5!(c3.south)$) {UART4 460800，帧协议 + CRC16，双向};
+  \draw[flow] (c3) -- (cloud);
+  \node[lbl] at ($(c3.north)!0.5!(cloud.south)$) {HTTPS，只有 C3 联网};
+\end{tikzpicture}
+\caption{云边端三层架构}\label{fig:arch}
+\end{figure}
+
+各层职责边界与``不越界''约束如下：
+\begin{itemize}
+  \item \textbf{云}：语音大模型负责把音频变成文字回答；天气服务提供气象数据。云端不感知板级 IO，不参与计步等本地逻辑。更换云厂商时只需修改 C3 侧代码。
+  \item \textbf{边（C3）}：只做网络接入与协议转换——收音频帧、补 WAV 头、调云端接口、把文本回传。不驱动屏幕、不读传感器、不做语义理解。
+  \item \textbf{端（F407）}：全部采集、本地算法与显示。云端返回的文本在 F407 原样显示，不再二次解析。
+\end{itemize}
+
+\subsection{功能模块划分}
+端侧软件按``采集--处理--传输--显示''四层组织，模块划分与数据流如图~\ref{fig:modules}所示。
+
+\begin{figure}[htbp]
+\centering
+\begin{tikzpicture}[x=1cm, y=1cm]
+  \node[box, minimum width=3.15cm] (mic) at (0,0) {麦克风\\PA5 / ADC1};
+  \node[box, minimum width=3.15cm] (mpu) at (3.7,0) {MPU6050\\I$^2$C};
+  \node[box, minimum width=3.15cm] (ds) at (7.4,0) {DS18B20\\PG9};
+  \node[box, minimum width=3.15cm] (key) at (11.1,0) {四按键\\PA0、PE2--4};
+  \node[proc, minimum width=3.15cm] (voice) at (0,-1.7) {语音状态机};
+  \node[proc, minimum width=3.15cm] (pedo) at (3.7,-1.7) {计步与跌倒};
+  \node[proc, minimum width=3.15cm] (slow) at (7.4,-1.7) {测温与走时};
+  \node[proc, minimum width=3.15cm] (uiq) at (11.1,-1.7) {界面事件队列};
+  \node[link, minimum width=14.25cm] (proto) at (5.55,-3.25)
+    {帧协议：A5 5A、CRC16；音频帧停等 ACK。UART4 460800 接 ESP32-C3};
+  \node[disp, minimum width=14.25cm] (lvgl) at (5.55,-4.45)
+    {LVGL 8.3：六行主页与各子页。识别文本由链路任务写入，界面任务出队显示};
+  \node[disp, minimum width=14.25cm] (tft) at (5.55,-5.55)
+    {FSMC：HX8357D 彩屏，录音缓冲在外部 SRAM};
+  \draw[flow] (mic) -- (voice);
+  \draw[flow] (mpu) -- (pedo);
+  \draw[flow] (ds) -- (slow);
+  \draw[flow] (key) -- (uiq);
+  \draw[flow] (voice.south) -- (voice.south |- proto.north);
+  \draw[flow] (pedo.south) -- (pedo.south |- proto.north);
+  \draw[flow] (slow.south) -- (slow.south |- proto.north);
+  \draw[flow] (uiq.south) -- (uiq.south |- proto.north);
+  \draw[flow] (proto) -- (lvgl);
+  \draw[flow] (lvgl) -- (tft);
+\end{tikzpicture}
+\caption{端侧功能模块划分与数据流}\label{fig:modules}
+\end{figure}
+
+
+\subsection{功能设计}
+\subsubsection{语音交互状态机}
+语音是系统最复杂的一条业务链路，F407 侧以六状态机组织（图~\ref{fig:voicefsm}）：
+按住 K\_UP 开始录音，松开或录满上限自动停止；短于 400\,ms 的按压视为误触丢弃；
+上传阶段对每一音频帧执行停等式应答，超时 300\,ms 重发、最多 3 次；
+END 帧获 ACK 后进入识别等待，超时 30\,s 视为失败。
+
+\begin{figure}[htbp]
+\centering
+\begin{tikzpicture}[x=1cm, y=1cm]
+  \node[startstop, minimum width=3.4cm] (idle) at (0,0) {空闲};
+  \node[process, minimum width=3.4cm] (rec) at (0,-1.45) {录音，最长 10 s};
+  \node[process, minimum width=3.4cm] (up) at (0,-2.9) {上传，停等 ACK};
+  \node[process, minimum width=3.4cm] (wait) at (0,-4.35) {等待识别};
+  \node[startstop, minimum width=3.4cm] (res) at (0,-5.8) {显示结果 5 s};
+  \node[startstop, minimum width=3.5cm] (fail) at (6.15,-2.9) {失败后回空闲};
+  \draw[flow] (idle) -- (rec);
+  \draw[flow] (rec) -- (up);
+  \draw[flow] (up) -- (wait);
+  \draw[flow] (wait) -- (res);
+  \draw[flow] (up.east) -- (fail.west);
+  \draw[flow] (wait.east) -- (6.15,-4.35) -- (fail.south);
+  \draw[flow] (res.west) -- (-2.55,-5.8) -- (-2.55,0) -- (idle.west);
+  \node[lbl, anchor=west] at (1.95,-0.72) {按住上键};
+  \node[lbl, anchor=west] at (1.95,-2.18) {满 0.4 s 才上传；更短则丢弃};
+  \node[lbl, anchor=north] at (3.15,-3.08) {3 次失败};
+  \node[lbl, anchor=south west] at (2.05,-4.15) {超时或 NACK};
+  \node[lbl, anchor=west] at (1.95,-5.08) {收到 ASR\_TEXT};
+  \node[lbl, anchor=east] at (-2.75,-2.9) {5 s 后返回};
+\end{tikzpicture}
+\caption{语音交互状态机}\label{fig:voicefsm}
+\end{figure}
+
+\subsubsection{语音链路时序}
+一次完整的``说一句话并得到回答''过程涉及 F407、C3 与云端三方，时序如图~\ref{fig:seqvoice}所示。
+
+\begin{figure}[htbp]
+\centering
+\begin{tikzpicture}[x=1cm, y=0.72cm]
+  \node[proc, minimum width=2.2cm] (f4) at (0,0) {F407};
+  \node[link, minimum width=2.4cm] (c3) at (6.5,0) {ESP32-C3};
+  \node[cloud, minimum width=1.8cm] (cl) at (12.2,0) {云端};
+  \draw (0,-0.7) -- (0,-10.3);
+  \draw (6.5,-0.7) -- (6.5,-10.3);
+  \draw (12.2,-0.7) -- (12.2,-10.3);
+  \draw[flow] (0.15,-1.2) -- (6.35,-1.2);
+  \node[lbl, above=0pt] at (3.25,-1.2) {HELLO，直到 HELLO\_ACK};
+  \draw[flow] (0.15,-2.2) -- (6.35,-2.2);
+  \node[lbl, above=0pt] at (3.25,-2.2) {AUDIO\_BEGIN（总字节）};
+  \draw[flow] (0.15,-3.2) -- (6.35,-3.2);
+  \node[lbl, above=0pt] at (3.25,-3.2) {AUDIO\_DATA，最多 506 字节};
+  \draw[flow] (6.35,-4.2) -- (0.15,-4.2);
+  \node[lbl, above=0pt] at (3.25,-4.2) {ACK / NACK，300 ms，最多 3 次};
+  \draw[flow] (0.15,-5.2) -- (6.35,-5.2);
+  \node[lbl, above=0pt] at (3.25,-5.2) {AUDIO\_END};
+  \draw[flow] (6.35,-6.2) -- (0.15,-6.2);
+  \node[lbl, above=0pt] at (3.25,-6.2) {ACK};
+  \draw[flow] (6.65,-7.2) -- (12.05,-7.2);
+  \node[lbl, above=0pt] at (9.35,-7.2) {WAV + Base64};
+  \draw[flow] (12.05,-8.2) -- (6.65,-8.2);
+  \node[lbl, above=0pt] at (9.35,-8.2) {JSON};
+  \draw[flow] (6.35,-9.2) -- (0.15,-9.2);
+  \node[lbl, above=0pt] at (3.25,-9.2) {ASR\_TEXT};
+\end{tikzpicture}
+\caption{语音上传与识别回传时序}\label{fig:seqvoice}
+\end{figure}
+
+\subsubsection{计步与跌倒处理流程}
+计步每 20\,ms 执行一次：读三轴原始值、计算合加速度、一阶滤波跟踪重力基线、
+动态分量越过阈值后回落记一步；同一会话内叠加跌倒粗判，流程如图~\ref{fig:pedoflow}。
+算法细节见~4.3 节。
+
+\begin{figure}[htbp]
+\centering
+\begin{tikzpicture}[node distance=5mm]
+  \node[startstop, minimum width=3.2cm] (s) {每 20 ms 采样};
+  \node[process, below=of s, minimum width=6.2cm] (mag) {合加速度 $mag=\sqrt{a_x^2+a_y^2+a_z^2}$};
+  \node[process, below=of mag, minimum width=6.2cm] (base)
+    {基线 $base \leftarrow 0.98\,base+0.02\,mag$\\动态量 $dyn=mag-base$};
+  \node[decision, below=8mm of base] (cross) {越阈后回落?};
+  \node[decision, below left=9mm and 8mm of cross] (gap) {间隔够?};
+  \node[process, below right=9mm and 6mm of cross, minimum width=2.8cm] (hold) {保持越阈};
+  \node[process, below=of gap, minimum width=2.6cm] (step) {步数加 1};
+  \node[decision, below=of hold] (fall) {像跌倒?};
+  \node[process, below=of fall, minimum width=3.2cm] (alarm) {蜂鸣，打开告警页};
+  \draw[flow] (s)--(mag)--(base)--(cross);
+  \draw[flow] (cross) -- (gap);
+  \node[lbl, above left=0pt] at ($(cross.south)!0.5!(gap.north)$) {是};
+  \draw[flow] (cross) -- (hold);
+  \node[lbl, above right=0pt] at ($(cross.south)!0.5!(hold.north)$) {否};
+  \draw[flow] (gap) -- (step);
+  \node[lbl, left=1pt] at ($(gap.south)!0.5!(step.north)$) {是};
+  \draw[flow] (hold) -- (fall);
+  \draw[flow] (fall) -- (alarm);
+  \node[lbl, right=2pt] at ($(fall.south)!0.5!(alarm.north)$) {是};
+  \node[process, right=8mm of fall, minimum width=2.5cm] (again) {下一拍再判};
+  \draw[flow] (fall) -- (again);
+  \node[lbl, above=1pt] at ($(fall.east)!0.5!(again.west)$) {否};
+\end{tikzpicture}
+\caption{计步与跌倒粗判处理流程}\label{fig:pedoflow}
+\end{figure}
+
+\subsection{数据存储设计}
+本系统为单机嵌入式装置，不使用服务器数据库；持久化数据全部存放在板载
+EEPROM 24C02（256\,字节，I$^2$C 地址 0x50，与 MPU6050 共享总线）中，
+按固定偏移组织成``数据记录表''（表~\ref{tab:ee}）。
+EEPROM 读写只在慢任务中执行，避免与 20\,ms 传感器采样竞争 I$^2$C 总线。
+
+\begin{table}[htbp]
+\centering\small
+\caption{24C02 数据记录表（一次读写长度 0x18 字节）}\label{tab:ee}
+\begin{tabular}{@{}llp{6.9cm}@{}}
+\toprule
+偏移 & 长度 & 内容\\
+\midrule
+0x00 & 4 & 魔数 ``STEP''，作为数据有效标志\\
+0x04 & 4 & 总步数（uint32，小端）\\
+0x08 & 4 & 当日步数（uint32，小端）\\
+0x0C & 1 & 当日对应日期（1--31），跨日清零当日步数\\
+0x10 & 2 & 计步动态阈值（0.001\,g 单位，uint16），默认 150\\
+0x12 & 2 & 最小步间隔（ms，uint16），默认 300\\
+0x14 & 3 & 闹钟配置：使能位 + 时 + 分\\
+\bottomrule
+\end{tabular}
+\end{table}
+
+存储的实体关系简单（图~\ref{fig:er}）：系统配置（阈值、间隔、闹钟）与
+运动记录（总步数、当日步数）两个``实体''均挂在同一 EEPROM 器件上，
+通过魔数判定记录有效性；读取时任何字段越界即回写出厂默认值，
+保证上电即有可用配置。
+
+\begin{figure}[htbp]
+\centering
+\begin{tikzpicture}[node distance=8mm and 18mm]
+  \node[cloud, text width=4.2cm] (cfg) {\textbf{系统配置}\\阈值、步间隔、闹钟\\偏移 0x10--0x16};
+  \node[edge, right=of cfg, text width=4.2cm] (rec) {\textbf{运动记录}\\总步数、当日步数、日期\\偏移 0x04--0x0C};
+  \node[mcu, below=14mm of $(cfg)!0.5!(rec)$, text width=5.2cm] (ee)
+    {\textbf{EEPROM 24C02}\\256 字节，I$^2$C 地址 0x50\\偏移 0x00 的魔数 STEP 表示有效};
+  \draw[flow] (cfg.south) -- (ee.140);
+  \draw[flow] (rec.south) -- (ee.40);
+\end{tikzpicture}
+\caption{持久化数据都写在同一片 24C02 上，字段见上表}\label{fig:er}
+\end{figure}
+
+\subsection{界面设计}
+\subsubsection{页面组织}
+界面采用手机式竖排列表而不是圆表盘：主页为六行入口，子页面通过四键进入和返回，
+LVGL 只重绘脏区域。页面树如下（按键：K\_UP 上移、OK/右键 进入或确认、
+下键 下移、BACK/左键 返回）：
+
+\begin{center}
+\small
+\begin{tabular}{@{}p{2.2cm}p{11.4cm}@{}}
+\toprule
+页面 & 内容与交互\\
+\midrule
+主页 & 六行：时间 / 计步 / 天气 / 语音 / 计算 / 游戏；焦点行 150\,ms 过渡到强调色\\
+时间页 & 大字号走时；闹钟开关与对时入口；秒表与倒计时\\
+计步页 & 总步数与当日步数实时显示；OK 键清零；下键进入阈值校准页\\
+天气页 & C3 回传的一行中文摘要（城市/现象/温度/体感/湿度/风向）；右键循环切换城市\\
+语音页 & 按住 K\_UP 说话；状态提示与云端回答文本显示\\
+校准页 & 计步阈值（50--500\,mg）与步间隔四档现场标定\\
+告警页 & 跌倒/闹钟/倒计时到点事件，任意键返回主页\\
+秒表/倒计时页 & 1\,ms 时基计数；倒计时到点蜂鸣并弹告警\\
+计算器页 & 四则运算的简易键盘页面\\
+游戏菜单 & 贪吃蛇 / 乒乓 / 俄罗斯方块，进入时懒加载，BACK 退出\\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\subsubsection{视觉与字体方案}
+配色在 RGB565 下贯穿全部页面：背景 \#0B1220，正文 \#E8EEF7，
+强调绿 \#3DDC97（计步数字与在线状态），告警红 \#FF5A5A，离线 \#E6B450。
+脚本 \texttt{gen\_ui\_font.py} 从黑体 simhei 抽取界面用字，生成 16\,px、1\,bpp 的稀疏字体。
+当前这次构建实际链入的汉字字体是 \texttt{lv\_font\_chinese\_16\_trial}，常量约 475\,KB；
+Montserrat 16 与 48 另约 16\,KB 和 94\,KB，供数字、符号和大号时间。
+因此 Flash 执行区约 836\,KB（上限 1\,MB），字库是大头。
+片内 RAM 约 105.5\,KB / 128\,KB；10\,s 录音缓冲 320\,000\,B 放在外部 SRAM，不占这 128\,KB 里的大块。

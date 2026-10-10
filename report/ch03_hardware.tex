@@ -1,0 +1,117 @@
+\section{硬件设计}
+
+\subsection{平台与器件选型}
+系统硬件以天马F407 开发板为主体，外接一块 ESP32-C3 核心板作为边缘网关，
+以及一只模拟麦克风模块。选型与理由见表~\ref{tab:parts}。
+选型总体原则是\textbf{成本效益}：全部器件为开发板板载或十元级模组，
+不自制 PCB，课设资源集中于软件与系统集成。
+
+\begin{table}[htbp]
+\centering\small
+\caption{主要器件与选型理由}\label{tab:parts}
+\begin{tabular}{@{}p{2.6cm}p{3.4cm}p{7.4cm}@{}}
+\toprule
+器件 & 型号/资源 & 选型理由\\
+\midrule
+主控 & STM32F407ZGT6 & Cortex-M4F@168\,MHz、1\,MB Flash、192\,KB RAM（含 64\,KB CCM），带 FPU/DSP 指令；片上外设满足 FSMC、多路 UART、ADC+DMA 需求；为本课程教学平台\\
+显示屏 & 3.5 寸 HX8357D & 320$\times$480 RGB565、16 位 8080 并口，FSMC 总线直挂；断电不保存，上电即亮，无背光 GPIO\\
+扩展存储 & IS62WV51216 & 512K$\times$16 位 = 1\,MB 外部 SRAM，FSMC NE3 片选；本设计将 10\,s 录音缓冲放于此处，释放内部 RAM\\
+六轴传感器 & MPU6050 & 计步与跌倒检测；I$^2$C 数字接口，$\pm$2\,g 量程下灵敏度 16\,384 LSB/g；不使用 DMP，算法自研可解释\\
+温度传感器 & DS18B20 & 单总线、12 位分辨率（0.0625\,$^\circ$C）；选择它是因为``表温''展示不需要高速，且单总线只占一根 PG9\\
+EEPROM & 24C02 & 256\,B 掉电保存步数与配置；与 MPU6050 共享 I$^2$C，不新增器件\\
+边缘网关 & ESP32-C3 核心板 & 内置 Wi-Fi 与 TLS 硬件加速，ESP-IDF 生态成熟；几元级成本；选它而非 ESP8266 的原因是 TLS/HTTP 栈维护成本和可用 RAM 明显更好\\
+麦克风 & 模拟驻极体模块 & 输出 0--3.3\,V 模拟音频，直入 ADC；不需要 I$^2$S MEMS 的额外时钟线\\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\subsection{时钟与电源}
+\subsubsection{时钟树}
+外部高速晶振 8\,MHz，经 PLL（分频 $M=8$、倍频 $N=336$、$P=2$）得到 168\,MHz 系统时钟。
+AHB 168\,MHz、APB1 42\,MHz、APB2 84\,MHz；APB1 预分频非 1，故其上的定时器时钟翻倍为 84\,MHz。
+录音采样由 TIM3 产生：$84\,\text{MHz}/5250=16\,\text{kHz}$，可整除无累积误差，
+TIM3 以 TRGO 信号触发 ADC1 按采样率转换。RTC 由外部 32.768\,kHz 晶振驱动，
+后备域由 VBAT 纽扣电池维持，主电断开后日历继续走时。
+
+\subsubsection{电源}
+开发板由 USB 或 5\,V 适配器供电，板上稳压输出 3.3\,V。
+C3 与麦克风均从板上 3.3\,V 排针取电。需要注意 Wi-Fi 发射时 C3 电流出现数百毫安尖峰，
+叠加 TFT 背光电流后，若电脑前置 USB 口供电能力不足可能导致整板复位；
+演示与联调时优先使用独立 5\,V/1\,A 以上电源。
+
+\subsection{关键接口连接}
+系统接口连接汇总见图~\ref{fig:hwconn}（F407 侧引脚均为实测原理图网络名）。
+
+\begin{figure}[htbp]
+\centering
+\begin{tikzpicture}[x=1cm, y=1cm]
+  \node[mcu, align=left, font=\footnotesize, text width=6.15cm, minimum height=7.6cm,
+        anchor=north west] (f4) at (0,0)
+    {\textbf{STM32F407ZGT6}\\
+     PA5 \enspace 麦克风，ADC1 通道 5\\
+     PB8 / PB9 \enspace I$^2$C：MPU6050 与 24C02\\
+     PG9 \enspace DS18B20，10 k$\Omega$ 上拉\\
+     PA0、PE2、PE3、PE4 \enspace 四按键\\
+     PF8 / PF9 / PF10 \enspace 蜂鸣、LED1、LED2\\
+     PE5 \enspace 5$\times$5 WS2812，滚动 CQUT\\
+     PC10 发、PC11 收 \enspace UART4 460800\\
+     FSMC \enspace 屏与外部 SRAM 共用数据总线};
+  \node[box, text width=5.35cm, anchor=north west] (tft) at (8.05,-0.05)
+    {HX8357D 彩屏\\16 位 FSMC，NE4 = PG12\\RS = A6，基址 0x6C000000};
+  \node[box, text width=5.35cm, anchor=north west] (sram) at (8.05,-2.05)
+    {IS62WV51216，1 MB\\FSMC NE3 = PG10\\基址 0x68000000};
+  \node[edge, text width=5.35cm, anchor=north west] (c3) at (8.05,-4.05)
+    {ESP32-C3\\GPIO4 发送，GPIO5 接收\\与 F407 交叉、共地};
+  \node[cloud, text width=5.35cm, anchor=north west] (net) at (8.05,-6.05)
+    {Wi-Fi 与云端\\语音模型、Open-Meteo};
+  \draw[flow] (f4.east |- tft.west) -- (tft.west);
+  \draw[flow] (f4.east |- sram.west) -- (sram.west);
+  \draw[flow] (f4.east |- c3.west) -- (c3.west);
+  \draw[flow] (c3.south) -- (net.north);
+\end{tikzpicture}
+\caption{系统接口连接框图}\label{fig:hwconn}
+\end{figure}
+
+\subsubsection{显示与扩展存储总线}
+HX8357D 的 16 位 8080 并口直接挂在 FSMC 上：片选 NE4（PG12）对应 Bank1 子区 4，
+寄存器基址 0x6C000000；地址线 A6 充当 RS（命令/数据选择），16 位总线下对应
+字节偏移 0x80，即命令/数据两个地址只差一位寻址。外部 SRAM 用 NE3（PG10），
+基址 0x68000000，与 LCD 共享数据线和地址线、仅靠片选区分，二者可同时启用。
+不设全屏帧缓冲（320$\times$480$\times$2$\approx$300\,KB 超出内部 RAM），
+LVGL 采用行缓冲脏区刷新直写 GRAM（详见 4.6 节）。
+
+\subsubsection{音频输入链路}
+开发板 ADC 区跳线 J01/J4 出厂状态会把电位器、触摸、DAC 信号并联到 PA5，
+接麦克风前必须拔除跳线帽。TIM3 以 16\,kHz TRGO 触发 ADC1 通道 5（PA5），
+采样时间 84 周期，转换结果由 DMA 双半环缓冲搬运（详见 4.2 节）。
+
+\subsubsection{F407 与 C3 的连接}
+板载 ESP8266 座与 USART3、RS232 收发芯片处于同一对 TTL 网络，
+且其 8 脚脚序按 ESP8266 定义（含 W\_RST/CH\_PD 等控制脚），与 C3 核心板不兼容，
+故 C3 用杜邦线连接，不占用任何板载座：
+PC10（UART4\_TX）接 C3 的 GPIO5（RX）、PC11（UART4\_RX）接 GPIO4（TX），
+共地，3.3\,V 从板上排针取。波特率 460\,800\,8N1。
+PC10/PC11 同时是 SDIO 的 D2/D3 复用脚，故 TF 卡必须保持不插。
+
+\subsection{接口冲突与跳线处理}
+天马F407 外设密度高，复用冲突多。设计阶段即对全部引脚做了冲突核对，
+最终状态固化在表~\ref{tab:jumper}，避免运行期因复用冲突出现诡异的复位与总线竞争。
+
+\begin{table}[htbp]
+\centering\small
+\caption{跳线/座子处理与复用冲突规避}\label{tab:jumper}
+\begin{tabular}{@{}p{1.8cm}p{4.6cm}p{7.0cm}@{}}
+\toprule
+编号/位置 & 处理 & 原因（复用冲突）\\
+\midrule
+J01、J4 & 跳线帽全拔 & 避免电位器/触摸/DAC/PWM 音频与麦克风在 PA5 并联\\
+P3、P4 & 不短接 & C3 走 UART4，不经 USART3 与 RS232；短接会把 UART4 引脚拉进 232 网络\\
+ESP8266 座 & 保持空 & 脚序不兼容 C3；占用会顶住 USART3/RS232 网络\\
+TF 卡槽 & 不插卡 & PC10/PC11 为 SDIO D2/D3，插卡后 SDIO 会拉住 UART4 引脚\\
+摄像头 & 不插 & PG9（DS18B20）与 PC11 亦是 DCMI 引脚\\
+BOOT 跳线 & BOOT0 短接 GND & 从 Flash 启动；上电进系统 Bootloader 的排查见 5.4 节\\
+USB/CAN & 出厂状态 & 本系统不用 CAN\\
+J2（F1 SPI） & 不短接 & 本阶段不启用板载 F103 协处理（保留为后备算力）\\
+\bottomrule
+\end{tabular}
+\end{table}

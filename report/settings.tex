@@ -1,0 +1,34 @@
+% 全局 TikZ / 排版
+% XeLaTeX + ctex：节点文本里再套 \scriptsize 时，汉字基线会相对边框上移。
+% 字号只放在节点的 font 上，行盒用 strut 锁住，标注单独占空白，不压在框上。
+\tikzset{
+  every picture/.style={
+    line cap=round, line join=round,
+    execute at begin picture={\xeCJKsetup{CJKecglue={\hskip 0.12em plus 0.04em minus 0.03em}}},
+  },
+  every node/.style={inner sep=3.5pt, outer sep=2.5pt},
+  >=Stealth,
+  box/.style={draw, rounded corners=2pt, align=center, inner xsep=6pt, inner ysep=4pt,
+              font=\small, execute at begin node=\strut},
+  cloud/.style={box, fill=blue!8},
+  edge/.style={box, fill=green!10},
+  mcu/.style={box, fill=orange!10},
+  proc/.style={box, fill=orange!14},
+  link/.style={box, fill=green!14},
+  disp/.style={box, fill=blue!10},
+  lbl/.style={font=\footnotesize, align=center, fill=white, inner sep=1.5pt, outer sep=1pt},
+  startstop/.style={box, rounded corners=8pt},
+  process/.style={box},
+  decision/.style={draw, diamond, aspect=2.5, align=center, font=\footnotesize,
+                   inner sep=1pt, minimum width=26mm, minimum height=13mm,
+                   execute at begin node=\strut},
+  flow/.style={->, semithick},
+}
+\captionsetup{font=small, labelsep=quad, skip=4pt}
+\setlist{nosep, leftmargin=2em, itemsep=1pt, topsep=2pt}
+\linespread{1.2}\selectfont
+\setlength{\textfloatsep}{8pt plus 2pt minus 2pt}
+\setlength{\floatsep}{8pt plus 2pt minus 2pt}
+\setlength{\intextsep}{8pt plus 2pt minus 2pt}
+\setlength{\abovecaptionskip}{4pt}
+\setlength{\belowcaptionskip}{2pt}

@@ -1,0 +1,56 @@
+# ===== 密钥（绝不入库）=====
+c3/main/secrets.h
+c3/build/
+f407/build/voice_*.pcm
+f407/build/voice_*.wav
+f407/build/voice_*.bin
+
+# ===== F407 / Keil / eide 构建产物 =====
+f407/Obj/
+f407/build/
+f407/.eide/log/
+f407/.eide.usr.ctx.json
+f407/DebugConfig/
+f407/*.ept
+f407/*.eide-template
+f407/tools/__pycache__/
+__pycache__/
+*.pyc
+
+# Keil 单文件构建垃圾（Listings 等在 Obj/ 下已有规则覆盖）
+*.uvguix.*
+*.uvoptx
+
+# ===== ESP-IDF 构建产物 =====
+c3/sdkconfig
+c3/sdkconfig.old
+c3/managed_components/
+c3/dependencies.lock
+c3/build/
+
+# ===== LaTeX 辅助产物 =====
+report/main.aux
+report/main.log
+report/main.out
+report/main.toc
+report/main.synctex.gz
+report/main.fls
+report/main.fdb_latexmk
+
+# ===== 系统垃圾 =====
+Thumbs.db
+Desktop.ini
+.DS_Store
+
+# CMSIS-Pack 完整仓库（仅 .cmsis/include 与 ARMCM4 被 eide 引用，按需重新下载）
+f407/.cmsis/device/ARM/
+f407/.cmsis/include/*
+!f407/.cmsis/include/core_cm4.h
+!f407/.cmsis/include/cmsis_version.h
+!f407/.cmsis/include/cmsis_compiler.h
+!f407/.cmsis/include/cmsis_armcc.h
+!f407/.cmsis/include/cmsis_armclang.h
+!f407/.cmsis/include/mpu_armv7.h
+
+# 工具链本地状态（build 日志等）
+f407/.embeddedskills/build/

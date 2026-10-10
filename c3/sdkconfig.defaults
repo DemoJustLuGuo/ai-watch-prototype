@@ -1,0 +1,14 @@
+# ESP32-C3 网关的默认配置。首次 idf.py set-target 时并入 sdkconfig。
+CONFIG_IDF_TARGET="esp32c3"
+
+# HTTPS 用乐鑫内置的 CA 证书包校验服务器，不关闭证书校验
+CONFIG_MBEDTLS_CERTIFICATE_BUNDLE=y
+CONFIG_MBEDTLS_CERTIFICATE_BUNDLE_DEFAULT_FULL=y
+
+# 板载 flash 实测 4MB，镜像头按 4MB 生成，避免“detected size larger than header”
+CONFIG_ESPTOOLPY_FLASHSIZE_4MB=y
+
+# 默认单应用分区只有 1MB，已用到 99%。加大到约 2MB，给后面的音频留余量
+CONFIG_PARTITION_TABLE_CUSTOM=y
+CONFIG_PARTITION_TABLE_CUSTOM_FILENAME="partitions.csv"
+CONFIG_PARTITION_TABLE_FILENAME="partitions.csv"

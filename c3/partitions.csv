@@ -1,0 +1,7 @@
+# 名称,    类型,  子类型, 偏移,    大小
+nvs,       data,  nvs,     0x9000,  0x6000
+phy_init,  data,  phy,     0xf000,  0x1000
+factory,   app,   factory, 0x10000, 0x1F0000
+# 录音暂存区：10 秒 16 kHz/16 bit/单声道 PCM 为 320000 字节，留到 0x60000（393216）。
+# C3 的 400 KB SRAM 装不下整段 PCM，所以落盘再流式上传，见 main/asr.c。
+audio,     data,  undefined, 0x200000, 0x60000

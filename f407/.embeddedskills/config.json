@@ -1,0 +1,15 @@
+{
+  "serial": {
+    "port": "COM5",
+    "baudrate": 115200,
+    "bytesize": 8,
+    "parity": "none",
+    "stopbits": 1,
+    "encoding": "utf-8"
+  },
+  "eide": {
+    "project": ".",
+    "config": "Target 1",
+    "log_dir": ".embeddedskills/build"
+  }
+}

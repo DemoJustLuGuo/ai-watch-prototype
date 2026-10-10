@@ -1,0 +1,9 @@
+# ESP-IDF 构建产物与本地配置
+build/
+sdkconfig
+sdkconfig.old
+managed_components/
+dependencies.lock
+
+# 账号、经纬度、语音接口地址，不进版本库，不进报告
+main/secrets.h

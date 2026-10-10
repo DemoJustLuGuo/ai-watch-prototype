@@ -1,0 +1,32 @@
+{
+  "last_observe": {
+    "type": "serial_monitor",
+    "port": "COM5",
+    "baudrate": 115200,
+    "lines": 81,
+    "duration_sec": 35.1,
+    "timestamp": "2026-09-23T20:00:34+08:00"
+  },
+  "last_build": {
+    "provider": "eide",
+    "action": "build",
+    "project": ".",
+    "config": "Target 1",
+    "log_dir": ".embeddedskills/build",
+    "artifacts": {
+      "hex_file": "build/Target 1/Template.hex",
+      "axf_file": "build/Target 1/Template.axf",
+      "flash_file": "build/Target 1/Template.hex",
+      "debug_file": "build/Target 1/Template.axf",
+      "build_dir": "build/Target 1",
+      "log_file": ".embeddedskills/build/f407-Target 1-build.log"
+    },
+    "hex_file": "build/Target 1/Template.hex",
+    "axf_file": "build/Target 1/Template.axf",
+    "flash_file": "build/Target 1/Template.hex",
+    "debug_file": "build/Target 1/Template.axf",
+    "build_dir": "build/Target 1",
+    "log_file": ".embeddedskills/build/f407-Target 1-build.log",
+    "timestamp": "2026-09-24T01:29:06+08:00"
+  }
+}

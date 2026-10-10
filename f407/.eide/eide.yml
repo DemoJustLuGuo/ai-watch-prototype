@@ -1,0 +1,334 @@
+version: "4.1"
+name: Template
+type: ARM
+deviceName: null
+packDir: null
+srcDirs:
+  - Middlewares/lvgl/src
+virtualFolder:
+  name: <virtual_root>
+  files: []
+  folders:
+    - name: User
+      files:
+        - path: User/main.c
+        - path: User/stm32f4xx_it.c
+        - path: User/stm32f4xx_hal_timebase_tim.c
+        - path: User/system_stm32f4xx.c
+      folders: []
+    - name: Startup
+      files:
+        - path: Libraries/CMSIS/startup_stm32f407xx.s
+      folders: []
+    - name: HAL_Driver
+      files:
+        - path: Libraries/STM32F4xx_HAL_Driver/Src/stm32f4xx_hal.c
+        - path: Libraries/STM32F4xx_HAL_Driver/Src/stm32f4xx_hal_cortex.c
+        - path: Libraries/STM32F4xx_HAL_Driver/Src/stm32f4xx_hal_gpio.c
+        - path: Libraries/STM32F4xx_HAL_Driver/Src/stm32f4xx_hal_pwr.c
+        - path: Libraries/STM32F4xx_HAL_Driver/Src/stm32f4xx_hal_pwr_ex.c
+        - path: Libraries/STM32F4xx_HAL_Driver/Src/stm32f4xx_hal_rcc.c
+        - path: Libraries/STM32F4xx_HAL_Driver/Src/stm32f4xx_hal_rcc_ex.c
+        - path: Libraries/STM32F4xx_HAL_Driver/Src/stm32f4xx_hal_tim.c
+        - path: Libraries/STM32F4xx_HAL_Driver/Src/stm32f4xx_hal_tim_ex.c
+        - path: Libraries/STM32F4xx_HAL_Driver/Src/stm32f4xx_hal_dma.c
+        - path: Libraries/STM32F4xx_HAL_Driver/Src/stm32f4xx_hal_dma_ex.c
+        - path: Libraries/STM32F4xx_HAL_Driver/Src/stm32f4xx_hal_uart.c
+        - path: Libraries/STM32F4xx_HAL_Driver/Src/stm32f4xx_hal_usart.c
+        - path: Libraries/STM32F4xx_HAL_Driver/Src/stm32f4xx_hal_iwdg.c
+        - path: Libraries/STM32F4xx_HAL_Driver/Src/stm32f4xx_hal_wwdg.c
+        - path: Libraries/STM32F4xx_HAL_Driver/Src/stm32f4xx_hal_rng.c
+        - path: Libraries/STM32F4xx_HAL_Driver/Src/stm32f4xx_hal_adc.c
+        - path: Libraries/STM32F4xx_HAL_Driver/Src/stm32f4xx_hal_adc_ex.c
+        - path: Libraries/STM32F4xx_HAL_Driver/Src/stm32f4xx_hal_dac.c
+        - path: Libraries/STM32F4xx_HAL_Driver/Src/stm32f4xx_hal_dac_ex.c
+        - path: Libraries/STM32F4xx_HAL_Driver/Src/stm32f4xx_hal_rtc.c
+        - path: Libraries/STM32F4xx_HAL_Driver/Src/stm32f4xx_hal_rtc_ex.c
+        - path: Libraries/STM32F4xx_HAL_Driver/Src/stm32f4xx_hal_can.c
+        - path: Libraries/STM32F4xx_HAL_Driver/Src/stm32f4xx_ll_fsmc.c
+        - path: Libraries/STM32F4xx_HAL_Driver/Src/stm32f4xx_hal_sram.c
+      folders: []
+    - name: CMSIS
+      files:
+        - path: Libraries/CMSIS/cmsis_armcc.h
+        - path: Libraries/CMSIS/cmsis_armclang.h
+        - path: Libraries/CMSIS/cmsis_compiler.h
+        - path: Libraries/CMSIS/cmsis_version.h
+        - path: Libraries/CMSIS/core_cm4.h
+        - path: Libraries/CMSIS/mpu_armv7.h
+      folders: []
+    - name: APP
+      files:
+        - path: APP/led/led.c
+        - path: APP/beep/beep.c
+        - path: APP/ws2812/ws2812.c
+        - path: APP/tftlcd/tftlcd.c
+        - path: APP/key/key.c
+        - path: APP/iic/iic.c
+        - path: APP/mpu6050/mpu6050.c
+        - path: APP/ds18b20/ds18b20.c
+        - path: APP/rtc/rtc.c
+        - path: APP/pedometer/pedometer.c
+        - path: APP/eeprom/eeprom.c
+        - path: APP/proto/proto.c
+        - path: APP/usart_c3/usart_c3.c
+        - path: APP/mic/mic.c
+        - path: APP/voice/voice.c
+        - path: APP/lv_port/lv_port_disp.c
+        - path: APP/lv_port/lv_port_indev.c
+        - path: APP/ui/ui.c
+        - path: APP/ui/ui_home.c
+        - path: APP/ui/ui_time.c
+        - path: APP/ui/ui_steps.c
+        - path: APP/ui/ui_calib.c
+        - path: APP/ui/ui_settime.c
+        - path: APP/ui/ui_alert.c
+        - path: APP/ui/ui_timer.c
+        - path: APP/ui/ui_calc.c
+        - path: APP/ui/ui_games.c
+        - path: APP/ui/ui_snake.c
+        - path: APP/ui/ui_pong.c
+        - path: APP/ui/ui_tetris.c
+        - path: APP/ui/ui_weather.c
+        - path: APP/ui/ui_voice.c
+      folders: []
+    - name: FreeRTOS
+      files:
+        - path: Middlewares/FreeRTOS/tasks.c
+        - path: Middlewares/FreeRTOS/queue.c
+        - path: Middlewares/FreeRTOS/list.c
+        - path: Middlewares/FreeRTOS/portable/MemMang/heap_4.c
+        - path: Middlewares/FreeRTOS/portable/RVDS/ARM_CM4F/port.c
+      folders: []
+    - name: Public
+      files:
+        - path: Public/system.c
+        - path: Public/SysTick.c
+        - path: Public/usart.c
+      folders: []
+dependenceList: []
+outDir: build
+miscInfo:
+  uid: ba540a0c00fa6bef1f11c90cfd625a5e
+targets:
+  Target 1:
+    cppPreprocessAttrs:
+      defineList:
+        - USE_HAL_DRIVER
+        - STM32F407xx
+        - LV_CONF_INCLUDE_SIMPLE
+      incList:
+        - Libraries/CMSIS
+        - Libraries/STM32F4xx_HAL_Driver/Inc
+        - User
+        - Public
+        - APP/led
+        - APP/beep
+        - APP/ws2812
+        - APP/key
+        - APP/exti
+        - APP/time
+        - APP/pwm
+        - APP/iwdg
+        - APP/wwdg
+        - APP/input
+        - APP/touch_key
+        - APP/rng
+        - APP/wkup
+        - APP/adc
+        - APP/adc_temp
+        - APP/dac
+        - APP/pwm_dac
+        - APP/dma
+        - APP/rtc
+        - APP/iic
+        - APP/24Cxx
+        - APP/ds18b20
+        - APP/mpu6050
+        - APP/pedometer
+        - APP/eeprom
+        - APP/proto
+        - APP/usart_c3
+        - APP/mic
+        - APP/voice
+        - APP/hwjs
+        - APP/rs485
+        - APP/can
+        - APP/tftlcd
+        - Middlewares/lvgl
+        - APP/lv_port
+        - APP/ui
+        - Middlewares/FreeRTOS/include
+        - Middlewares/FreeRTOS/portable/RVDS/ARM_CM4F
+        - .cmsis/include
+        - RTE/_Target 1
+      libList: []
+    excludeList: []
+    settings:
+      debugger: cortex-debug
+    toolchain: AC5
+    toolchainConfigMap:
+      AC5:
+        archExtensions: ""
+        cpuType: Cortex-M4
+        floatingPointHardware: single
+        options:
+          version: 4
+          afterBuildTasks: []
+          asm-compiler:
+            defines: []
+          beforeBuildTasks: []
+          c/cpp-compiler:
+            CXX_FLAGS: --diag_suppress=1 --diag_suppress=1295
+            C_FLAGS: --diag_suppress=1 --diag_suppress=1295
+            c99-mode: true
+            gnu-extensions: true
+            one-elf-section-per-function: true
+            optimization: level-0
+            warnings: all-warnings
+          global:
+            output-debug-info: enable
+            use-microLIB: true
+          linker:
+            $outputTaskExcludes:
+              - .bin
+            output-format: elf
+            ro-base: "0x08000000"
+            rw-base: "0x20000000"
+            xo-base: ""
+        scatterFilePath: build/Target 1/Template.sct
+        storageLayout:
+          RAM:
+            - id: 1
+              isChecked: true
+              mem:
+                size: "0x100000"
+                startAddr: "0x68000000"
+              noInit: true
+              tag: RAM
+            - id: 2
+              isChecked: false
+              mem:
+                size: "0x0"
+                startAddr: "0x0"
+              noInit: false
+              tag: RAM
+            - id: 3
+              isChecked: false
+              mem:
+                size: "0x0"
+                startAddr: "0x0"
+              noInit: false
+              tag: RAM
+            - id: 1
+              isChecked: true
+              mem:
+                size: "0x20000"
+                startAddr: "0x20000000"
+              noInit: false
+              tag: IRAM
+            - id: 2
+              isChecked: false
+              mem:
+                size: "0x10000"
+                startAddr: "0x10000000"
+              noInit: false
+              tag: IRAM
+          ROM:
+            - id: 1
+              isChecked: false
+              isStartup: false
+              mem:
+                size: "0x0"
+                startAddr: "0x0"
+              tag: ROM
+            - id: 2
+              isChecked: false
+              isStartup: false
+              mem:
+                size: "0x0"
+                startAddr: "0x0"
+              tag: ROM
+            - id: 3
+              isChecked: false
+              isStartup: false
+              mem:
+                size: "0x0"
+                startAddr: "0x0"
+              tag: ROM
+            - id: 1
+              isChecked: true
+              isStartup: true
+              mem:
+                size: "0x100000"
+                startAddr: "0x8000000"
+              tag: IROM
+            - id: 2
+              isChecked: false
+              isStartup: false
+              mem:
+                size: "0x0"
+                startAddr: "0x0"
+              tag: IROM
+        useCustomScatterFile: true
+      AC6:
+        archExtensions: ""
+        cpuType: Cortex-M4
+        floatingPointHardware: single
+        options:
+          version: 3
+          afterBuildTasks: []
+          asm-compiler:
+            $use: asm-auto
+            misc-controls: ""
+          beforeBuildTasks: []
+          c/cpp-compiler:
+            language-c: c99
+            language-cpp: c++11
+            link-time-optimization: false
+            optimization: level-0
+          global:
+            output-debug-info: enable
+            use-microLIB: false
+          linker:
+            $outputTaskExcludes:
+              - .bin
+            misc-controls: --diag_suppress=L6329
+            output-format: elf
+        scatterFilePath: <YOUR_SCATTER_FILE>.sct
+        storageLayout:
+          RAM:
+            - id: 1
+              isChecked: true
+              mem:
+                size: "0x5000"
+                startAddr: "0x20000000"
+              noInit: false
+              tag: IRAM
+          ROM:
+            - id: 1
+              isChecked: true
+              isStartup: true
+              mem:
+                size: "0x10000"
+                startAddr: "0x08000000"
+              tag: IROM
+        useCustomScatterFile: false
+    uploadConfigMap:
+      JLink:
+        baseAddr: ""
+        bin: ""
+        cpuInfo:
+          cpuName: "null"
+          vendor: "null"
+        otherCmds: ""
+        proType: 1
+        speed: 8000
+      pyOCD:
+        baseAddr: "0x08000000"
+        bin: ""
+        config: .eide/target 1.pyocd.yaml
+        otherCmds: ""
+        speed: 1M
+        targetName: stm32f407zgtx
+    uploader: pyOCD
